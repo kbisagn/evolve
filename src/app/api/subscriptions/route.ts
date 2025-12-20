@@ -135,6 +135,15 @@ export async function POST(request: NextRequest) {
 
     await subscription.save();
 
+    // Generate unique code: EVOLVE + YYYY + MM + 001
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    // For demo, use a simple counter, in real app use a counter collection
+    const lastPayment = await Payment.findOne().sort({ createdAt: -1 });
+    const counter = lastPayment ? parseInt(lastPayment.uniqueCode.slice(-3)) + 1 : 1;
+    const uniqueCode = `EVOLVE${year}${month}${String(counter).padStart(3, '0')}`;
+
     const payment = new Payment({
 
       subscription: subscription._id,
@@ -146,6 +155,8 @@ export async function POST(request: NextRequest) {
       upiCode: paymentMethod === 'UPI' ? upiCode : undefined,
 
       dateTime: new Date(dateTime),
+
+      uniqueCode,
 
     });
 

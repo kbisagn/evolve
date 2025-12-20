@@ -13,21 +13,20 @@ interface Subscription {
 export default function Reports() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
 
-  useEffect(() => {
-    fetchSubscriptions();
-  }, []);
-
   const fetchSubscriptions = async () => {
     const res = await fetch('/api/subscriptions');
     const data = await res.json();
     setSubscriptions(data);
   };
 
+  useEffect(() => {
+    fetchSubscriptions();
+  }, []);
+
   const totalRevenue = subscriptions.reduce((sum, sub) => sum + sub.totalAmount, 0);
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Reports</h1>
+    <div className="p-6">
       <p className="mb-4">Total Revenue: ₹{totalRevenue}</p>
       <h2 className="text-xl mb-2">All Subscriptions and Payments</h2>
       <ul>

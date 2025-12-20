@@ -5,11 +5,15 @@ import dbConnect from '@/lib/mongodb';
 import WaitingList from '@/models/WaitingList';
 
 export async function GET() {
+  try {
+    await dbConnect();
 
-  await dbConnect();
+    const waiting = await WaitingList.find().populate('member', 'name email').sort({ requestedDate: 1 });
 
-  const waiting = await WaitingList.find().populate('member', 'name email').sort({ requestedDate: 1 });
-
-  return NextResponse.json(waiting);
-
+    return NextResponse.json(waiting);
+  } catch (error) {
+    console.error('Error in GET /api/waiting:', error);
+    const message = error instanceof Error ? error.message : 'Failed to fetch waiting list';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

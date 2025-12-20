@@ -1,11 +1,14 @@
 import mongoose from 'mongoose';
 
 const MemberSchema = new mongoose.Schema({
+  memberId: { type: String, unique: true },
   name: { type: String, required: true },
-  email: { type: String, unique: true },
-  phone: { type: String },
-  address: { type: String },
+  email: { type: String, required: true },
+  phone: { type: String, required: true },
+  address: { type: String, required: true },
+  examPrep: { type: String },
   createdAt: { type: Date, default: Date.now },
 });
 
-export default mongoose.models.Member || mongoose.model('Member', MemberSchema);
+delete mongoose.models.Member;
+export default mongoose.model('Member', MemberSchema);

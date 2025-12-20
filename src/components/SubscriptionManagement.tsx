@@ -36,12 +36,6 @@ export default function SubscriptionManagement() {
     dateTime: '',
   });
 
-  useEffect(() => {
-    fetchMembers();
-    fetchSeats();
-    fetchSubscriptions();
-  }, []);
-
   const fetchMembers = async () => {
     try {
       const res = await fetch('/api/members');
@@ -87,6 +81,12 @@ export default function SubscriptionManagement() {
     }
   };
 
+  useEffect(() => {
+    fetchMembers();
+    fetchSeats();
+    fetchSubscriptions();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const res = await fetch('/api/subscriptions', {
@@ -113,8 +113,7 @@ export default function SubscriptionManagement() {
   const vacantSeats = seats.filter(s => s.status === 'vacant');
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Subscription Management</h1>
+    <div className="p-6">
       {error && <p className="text-red-500 mb-4">{error}</p>}
       <form onSubmit={handleSubmit} className="mb-4 grid grid-cols-2 gap-2">
         <select

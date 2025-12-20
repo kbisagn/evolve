@@ -5,25 +5,18 @@ import dbConnect from '@/lib/mongodb';
 import Seat from '@/models/Seat';
 
 export async function GET() {
+  try {
+    await dbConnect();
 
-  await dbConnect();
+    const seats = await Seat.find()
+      .sort({ seatNumber: 1 })
+      .populate('assignedMember', 'name')
+      .populate('subscription', 'endDate status');
 
-  const seats = await Seat.find()
-
-    .sort({ seatNumber: 1 })
-
-    .populate('assignedMember', 'name')
-
-    .populate({
-
-      path: 'subscription',
-
-      select: 'endDate status',
-
-      populate: { path: 'member', select: 'name' }
-
-    });
-
-  return NextResponse.json(seats);
-
+    return NextResponse.json(seats);
+  } catch (error) {
+    console.error('Error in GET /api/seats:', error);
+    const message = error instanceof Error ? error.message : 'Failed to fetch seats';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

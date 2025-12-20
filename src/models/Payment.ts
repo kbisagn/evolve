@@ -6,6 +6,7 @@ const PaymentSchema = new mongoose.Schema({
   method: { type: String, enum: ['UPI', 'cash'], required: true },
   upiCode: { type: String }, // only if UPI
   dateTime: { type: Date, required: true },
-});
+  uniqueCode: { type: String, required: true },
+}, { timestamps: true });
 
 export default mongoose.models.Payment || mongoose.model('Payment', PaymentSchema);
