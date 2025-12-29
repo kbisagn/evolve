@@ -8,7 +8,7 @@ export async function GET() {
   try {
     await dbConnect();
 
-    const waiting = await WaitingList.find().populate('member', 'name email').sort({ requestedDate: 1 });
+    const waiting = await WaitingList.find().populate('member', 'name email memberId').sort({ requestedDate: -1 });
 
     return NextResponse.json(waiting);
   } catch (error) {

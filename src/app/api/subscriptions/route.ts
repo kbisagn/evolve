@@ -14,17 +14,17 @@ function calculateEndDate(start: Date, duration: string) {
 
   const startDate = new Date(start);
 
-  if (duration.includes('days')) {
-
-    const days = parseInt(duration.split(' ')[0]);
-
-    startDate.setDate(startDate.getDate() + days);
-
-  } else if (duration.includes('month')) {
+  if (duration.includes('month')) {
 
     const months = parseInt(duration.split(' ')[0]);
 
     startDate.setMonth(startDate.getMonth() + months);
+
+  } else {
+
+    const days = parseInt(duration.split(' ')[0]) || 0;
+
+    startDate.setDate(startDate.getDate() + days);
 
   }
 
@@ -39,9 +39,10 @@ export async function GET() {
     console.log('DB connected for subscriptions.');
 
     const subscriptions = await Subscription.find()
-      .populate('member', 'name email')
+      .populate('member', 'name email memberId')
       .populate('seat', 'seatNumber')
-      .populate('payments');
+      .populate('payments')
+      .sort({ createdAt: -1 });
 
     return NextResponse.json(subscriptions);
   } catch (error) {
@@ -97,7 +98,15 @@ export async function POST(request: NextRequest) {
 
       // add to waiting list
 
-      const waiting = new WaitingList({ member: memberId });
+      const waiting = new WaitingList({
+        member: memberId,
+        startDate,
+        duration,
+        amount,
+        paymentMethod,
+        upiCode: paymentMethod === 'UPI' ? upiCode : undefined,
+        dateTime,
+      });
 
       await waiting.save();
 
@@ -141,7 +150,7 @@ export async function POST(request: NextRequest) {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     // For demo, use a simple counter, in real app use a counter collection
     const lastPayment = await Payment.findOne().sort({ createdAt: -1 });
-    const counter = lastPayment ? parseInt(lastPayment.uniqueCode.slice(-3)) + 1 : 1;
+    const counter = lastPayment && lastPayment.uniqueCode ? parseInt(lastPayment.uniqueCode.slice(-3)) + 1 : 1;
     const uniqueCode = `EVOLVE${year}${month}${String(counter).padStart(3, '0')}`;
 
     const payment = new Payment({

@@ -12,16 +12,13 @@ export default function Sidebar() {
         </Link>
         <Link href="/seats" className="flex items-center space-x-2 p-2 rounded hover:bg-gray-700">
           <MapPin size={20} />
-          <span>Seats</span>
+          <span>Seats & Subscriptions</span>
         </Link>
         <Link href="/members" className="flex items-center space-x-2 p-2 rounded hover:bg-gray-700">
           <Users size={20} />
           <span>Members</span>
         </Link>
-        <Link href="/subscriptions" className="flex items-center space-x-2 p-2 rounded hover:bg-gray-700">
-          <CreditCard size={20} />
-          <span>Subscriptions</span>
-        </Link>
+
         <Link href="/reports" className="flex items-center space-x-2 p-2 rounded hover:bg-gray-700">
           <BarChart3 size={20} />
           <span>Reports</span>
