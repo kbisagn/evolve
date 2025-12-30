@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import SubscriptionManagement from '../../components/SubscriptionManagement';
+import Footer from '../../components/Footer';
+import { Toaster } from 'react-hot-toast';
+import { Plus, X } from 'lucide-react';
 
 interface Seat {
   _id: string;
@@ -16,6 +19,9 @@ interface Seat {
 export default function SeatsPage() {
   const [seats, setSeats] = useState<Seat[]>([]);
   const [waitingCount, setWaitingCount] = useState(0);
+  const [isSubscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
+  const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null);
+  const [prefillSeat, setPrefillSeat] = useState('');
 
   const fetchSeats = async () => {
     try {
@@ -57,15 +63,56 @@ export default function SeatsPage() {
     fetchWaiting();
   }, []);
 
+  const handleDataUpdate = () => {
+    fetchSeats();
+    fetchWaiting();
+  };
+
   const vacant = seats.filter(s => s.status === 'vacant').length;
   const occupied = seats.filter(s => s.status === 'occupied').length;
+
+  const handleSeatDoubleClick = (seat: Seat) => {
+    if (seat.status === 'vacant') {
+      setPrefillSeat(seat.seatNumber.toString());
+      setSubscriptionModalOpen(true);
+    } else {
+      setSelectedSeat(seat);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header pageTitle="Facility Dashboard" />
+        <style jsx global>{`
+          /* For Webkit-based browsers (Chrome, Safari) */
+          ::-webkit-scrollbar { width: 8px; height: 8px; }
+          ::-webkit-scrollbar-track { background: transparent; }
+          ::-webkit-scrollbar-thumb {
+            background-color: rgba(156, 163, 175, 0.5);
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+          }
+          ::-webkit-scrollbar-thumb:hover { background-color: rgba(107, 114, 128, 0.8); }
+          /* For Firefox */
+          * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+          }
+        `}</style>
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          
+          <div className="flex justify-end mb-6">
+            <button
+              onClick={() => setSubscriptionModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              New Subscription
+            </button>
+          </div>
           
           {/* Stats Overview */}
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-8">
@@ -132,19 +179,20 @@ export default function SeatsPage() {
 
           {/* Seating Map */}
           <div className="bg-white shadow rounded-lg mb-8 border border-gray-200">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-6">Live Seating Map</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10 gap-4">
+            <div className="px-4 py-4 sm:p-4">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Live Seating Map</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 xl:grid-cols-10 gap-3">
                 {seats.map(seat => (
                   <div 
                     key={seat.seatNumber} 
-                    className={`relative p-4 border rounded-xl flex flex-col items-center justify-center text-center transition-all duration-200 ${
+                    onDoubleClick={() => handleSeatDoubleClick(seat)}
+                    className={`relative p-2 border rounded-xl flex flex-col items-center justify-center text-center transition-all duration-200 cursor-pointer select-none ${
                       seat.status === 'vacant' 
                         ? 'bg-green-50 border-green-200 hover:shadow-md hover:border-green-300' 
                         : 'bg-white border-red-200 shadow-sm hover:shadow-md'
                     }`}
                   >
-                    <div className={`text-2xl font-bold mb-1 ${seat.status === 'vacant' ? 'text-green-600' : 'text-gray-800'}`}>
+                    <div className={`text-xl font-bold mb-1 ${seat.status === 'vacant' ? 'text-green-600' : 'text-gray-800'}`}>
                       {seat.seatNumber}
                     </div>
                     {seat.status === 'vacant' ? (
@@ -158,7 +206,7 @@ export default function SeatsPage() {
                         </div>
                         {seat.subscription && (
                           <div className="text-xs text-gray-500 mt-1">
-                            Exp: {new Date(seat.subscription.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
+                          Exp: {new Date(seat.subscription.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
                           </div>
                         )}
                       </div>
@@ -174,8 +222,67 @@ export default function SeatsPage() {
 
           {/* Subscription Management Section */}
           <div className="mt-8">
-            <SubscriptionManagement />
+            <SubscriptionManagement 
+              isOpen={isSubscriptionModalOpen} 
+              onClose={() => {
+                setSubscriptionModalOpen(false);
+                setPrefillSeat('');
+              }}
+              onUpdate={handleDataUpdate}
+              initialSeatNumber={prefillSeat}
+            />
           </div>
+
+          {/* Seat Detail Modal */}
+          {selectedSeat && (
+            <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 border border-gray-100 overflow-hidden animate-fade-in">
+                <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50">
+                  <h3 className="text-lg font-bold text-gray-900">Seat {selectedSeat.seatNumber} Details</h3>
+                  <button onClick={() => setSelectedSeat(null)} className="text-gray-400 hover:text-gray-500 transition-colors">
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500">Status</label>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize mt-1 ${selectedSeat.status === 'vacant' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {selectedSeat.status}
+                    </span>
+                  </div>
+                  {selectedSeat.assignedMember && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Assigned Member</label>
+                      <div className="mt-1 text-lg font-semibold text-gray-900">{selectedSeat.assignedMember.name}</div>
+                    </div>
+                  )}
+                  {selectedSeat.subscription && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Subscription Ends</label>
+                        <div className="mt-1 text-gray-900">
+                          {new Date(selectedSeat.subscription.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Subscription Status</label>
+                        <div className="mt-1 text-gray-900 capitalize">{selectedSeat.subscription.status}</div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="bg-gray-50 px-6 py-4 flex justify-end">
+                  <button
+                    onClick={() => setSelectedSeat(null)}
+                    className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium text-sm transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          <Footer />
         </main>
       </div>
     </div>

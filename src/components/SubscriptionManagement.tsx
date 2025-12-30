@@ -7,6 +7,8 @@ import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import ConfirmationModal from './ConfirmationModal';
+import { Toaster, toast } from 'react-hot-toast';
 
 interface Member {
   _id: string;
@@ -35,18 +37,27 @@ interface Waiting {
   amount: number;
 }
 
-export default function SubscriptionManagement() {
+interface SubscriptionManagementProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  onUpdate?: () => void;
+  initialSeatNumber?: string;
+}
+
+export default function SubscriptionManagement({ isOpen = false, onClose = () => {}, onUpdate, initialSeatNumber }: SubscriptionManagementProps) {
   const [members, setMembers] = useState<Member[]>([]);
   const [seats, setSeats] = useState<any[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [waitingList, setWaitingList] = useState<Waiting[]>([]);
   const [error, setError] = useState<string>('');
-  const [showForm, setShowForm] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'active' | 'expired' | 'waiting'>('active');
   const [globalFilter, setGlobalFilter] = useState('');
   const [startDateFilter, setStartDateFilter] = useState('');
   const [endDateFilter, setEndDateFilter] = useState('');
   const [changingSeatId, setChangingSeatId] = useState<string | null>(null);
   const [newSeat, setNewSeat] = useState<string>('');
+  const [showEndConfirmation, setShowEndConfirmation] = useState(false);
+  const [endSubscriptionId, setEndSubscriptionId] = useState<string | null>(null);
   const [form, setForm] = useState({
     memberId: '',
     seatNumber: '',
@@ -93,6 +104,7 @@ export default function SubscriptionManagement() {
       const res = await fetch('/api/subscriptions');
       if (res.ok) {
         const data = await res.json();
+        data.sort((a: Subscription, b: Subscription) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
         setSubscriptions(data);
       } else {
         const errorData = await res.json();
@@ -108,6 +120,7 @@ export default function SubscriptionManagement() {
       const res = await fetch('/api/waiting');
       if (res.ok) {
         const data = await res.json();
+        data.sort((a: Waiting, b: Waiting) => new Date(b.requestedDate).getTime() - new Date(a.requestedDate).getTime());
         setWaitingList(data);
       } else {
         const errorData = await res.json();
@@ -124,6 +137,12 @@ export default function SubscriptionManagement() {
     fetchSubscriptions();
     fetchWaitingList();
   }, []);
+
+  useEffect(() => {
+    if (isOpen && initialSeatNumber) {
+      setForm(prev => ({ ...prev, seatNumber: initialSeatNumber }));
+    }
+  }, [isOpen, initialSeatNumber]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,7 +168,7 @@ export default function SubscriptionManagement() {
     });
     const result = await res.json();
     if (res.ok) {
-      alert(result.message || 'Subscription created');
+      toast.success(result.message || 'Subscription created');
       setForm({
         memberId: '',
         seatNumber: '',
@@ -160,23 +179,32 @@ export default function SubscriptionManagement() {
         upiCode: '',
         dateTime: '',
       });
+      onClose();
     } else {
       setError(result.error || 'Failed to create subscription');
     }
     fetchSubscriptions();
     fetchSeats();
     fetchWaitingList();
+    if (onUpdate) onUpdate();
   };
 
-  const endSubscription = async (id: string) => {
-    if (confirm("Are you sure you want to end this subscription?")) {
-      if (confirm("This action cannot be undone. Are you really sure?")) {
-        await fetch(`/api/subscriptions/${id}`, { method: 'PUT' });
-        fetchSubscriptions();
-        fetchSeats();
-        fetchWaitingList();
-      }
+  const handleEndSubscriptionRequest = (id: string) => {
+    setEndSubscriptionId(id);
+    setShowEndConfirmation(true);
+  };
+
+  const handleEndSubscriptionConfirm = async () => {
+    if (!endSubscriptionId) return;
+    const res = await fetch(`/api/subscriptions/${endSubscriptionId}`, { method: 'PUT' });
+    if (res.ok) {
+      toast.success('Subscription ended successfully.');
+      fetchSubscriptions();
+      fetchSeats();
+      fetchWaitingList();
+      if (onUpdate) onUpdate();
     }
+    setEndSubscriptionId(null);
   };
 
   const changeSeat = async (id: string, newSeatNumber: string) => {
@@ -190,14 +218,16 @@ export default function SubscriptionManagement() {
       setNewSeat('');
       fetchSubscriptions();
       fetchSeats();
+      if (onUpdate) onUpdate();
     } else {
-      alert('Failed to change seat');
+      toast.error('Failed to change seat. It might be occupied.');
     }
   };
 
   const removeFromWaiting = async (id: string) => {
     await fetch(`/api/waiting/${id}`, { method: 'DELETE' });
     fetchWaitingList();
+    if (onUpdate) onUpdate();
   };
 
   const calculatePreviewEndDate = () => {
@@ -292,11 +322,12 @@ export default function SubscriptionManagement() {
     {
       accessorKey: 'totalAmount',
       header: 'Amount',
-      cell: ({ getValue }) => <span className="font-semibold text-gray-900">₹{getValue<number>()}</span>
+      cell: ({ getValue }) => <span className="font-semibold text-gray-900">₹{getValue<number>().toLocaleString('en-IN')}</span>
     },
     {
       id: 'actions',
       header: 'Actions',
+      enableSorting: false,
       cell: ({ row }) => {
         const sub = row.original;
         return changingSeatId === sub._id ? (
@@ -338,7 +369,7 @@ export default function SubscriptionManagement() {
             >
               Change Seat
             </button>
-            <button onClick={() => endSubscription(sub._id)} className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition-colors text-xs uppercase font-semibold tracking-wide">
+            <button onClick={() => handleEndSubscriptionRequest(sub._id)} className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition-colors text-xs uppercase font-semibold tracking-wide">
               End
             </button>
           </div>
@@ -388,7 +419,7 @@ export default function SubscriptionManagement() {
     {
       accessorKey: 'totalAmount',
       header: 'Amount',
-      cell: ({ getValue }) => <span className="font-semibold text-gray-900">₹{getValue<number>()}</span>
+      cell: ({ getValue }) => <span className="font-semibold text-gray-900">₹{getValue<number>().toLocaleString('en-IN')}</span>
     }
   ], []);
 
@@ -417,11 +448,12 @@ export default function SubscriptionManagement() {
     {
       accessorKey: 'amount',
       header: 'Amount',
-      cell: ({ getValue }) => <span className="font-semibold text-gray-900">₹{getValue<number>()}</span>
+      cell: ({ getValue }) => <span className="font-semibold text-gray-900">₹{getValue<number>().toLocaleString('en-IN')}</span>
     },
     {
       id: 'actions',
       header: 'Actions',
+      enableSorting: false,
       cell: ({ row }) => (
         <button onClick={() => removeFromWaiting(row.original._id)} className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition-colors text-xs uppercase font-semibold tracking-wide">
           Remove
@@ -562,61 +594,9 @@ export default function SubscriptionManagement() {
 
   return (
     <>
-      {/* Header & Actions */}
-      <div className="flex justify-end mb-6">
-          <div>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 ${showForm ? 'bg-gray-600 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700'}`}
-            >
-              {showForm ? 'Cancel' : 'New Subscription'}
-            </button>
-          </div>
-        </div>
-
-        {/* Filters Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-lg">
-              <input
-                type="text"
-                placeholder="Search subscriptions..."
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-                className="w-full pl-4 pr-4 py-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block transition-colors"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                { label: 'Last 7 Days', days: 7 },
-                { label: 'Last 30 Days', days: 30 },
-                { label: 'Last 3 Months', months: 3 },
-                { label: 'This Year', year: true },
-              ].map((filter, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    if (filter.days) setStartDateFilter(format(subDays(new Date(), filter.days), 'yyyy-MM-dd'));
-                    else if (filter.months) setStartDateFilter(format(subMonths(new Date(), filter.months), 'yyyy-MM-dd'));
-                    else if (filter.year) setStartDateFilter(format(startOfYear(new Date()), 'yyyy-MM-dd'));
-                    setEndDateFilter('');
-                  }}
-                  className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
-                >
-                  {filter.label}
-                </button>
-              ))}
-              <button onClick={() => { setStartDateFilter(''); setEndDateFilter(''); }} className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-full hover:bg-red-100 transition-colors">Clear</button>
-              <div className="h-6 w-px bg-gray-300 mx-2 hidden sm:block"></div>
-              <button onClick={exportToExcel} className="flex-1 sm:flex-none inline-flex justify-center items-center px-4 py-2 text-sm font-medium text-green-700 bg-white border border-green-300 rounded-lg hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all">Excel</button>
-              <button onClick={exportToCSV} className="flex-1 sm:flex-none inline-flex justify-center items-center px-4 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-lg hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">CSV</button>
-              <button onClick={exportToPDF} className="flex-1 sm:flex-none inline-flex justify-center items-center px-4 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all">PDF</button>
-            </div>
-          </div>
-        </div>
-
+        <ConfirmationModal isOpen={showEndConfirmation} onClose={() => setShowEndConfirmation(false)} onConfirm={handleEndSubscriptionConfirm} title="End Subscription" message="Are you sure you want to end this subscription? This will free up the seat. This action cannot be undone." />
         {error && (
-          <div className="rounded-md bg-red-50 p-4 mb-6 border border-red-200">
+          <div className="rounded-md bg-red-50 p-4 mb-4 border border-red-200">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -630,10 +610,18 @@ export default function SubscriptionManagement() {
           </div>
         )}
 
-        {showForm && (
-          <div className="bg-white shadow-lg sm:rounded-xl mb-8 overflow-hidden border border-gray-100">
-            <div className="px-6 py-6 sm:p-8">
-              <h3 className="text-xl font-bold text-gray-900 mb-6">Create New Subscription</h3>
+        {isOpen && (
+          <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 border border-gray-100 overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-900">Create New Subscription</h3>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-500 transition-colors">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="px-6 py-6">
               <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-6">
                 
                 <div className="sm:col-span-3">
@@ -753,10 +741,17 @@ export default function SubscriptionManagement() {
                   />
                 </div>
 
-                <div className="sm:col-span-6 flex justify-end pt-2">
+                <div className="sm:col-span-6 flex justify-end pt-4 gap-3">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors text-sm font-medium"
+                  >
+                    Cancel
+                  </button>
                   <button
                     type="submit"
-                    className="inline-flex justify-center py-2.5 px-6 border border-transparent shadow-sm text-sm font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105"
+                    className="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105"
                   >
                     Create Subscription
                   </button>
@@ -764,12 +759,74 @@ export default function SubscriptionManagement() {
               </form>
             </div>
           </div>
+          </div>
         )}
 
-        <div className="space-y-8">
+        {/* Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            {['active', 'expired', 'waiting'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab as any)}
+                className={`${
+                  activeTab === tab
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors`}
+              >
+                {tab === 'waiting' ? 'Waiting List' : `${tab} Subscriptions`}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Filters Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-lg">
+              <input
+                type="text"
+                placeholder="Search subscriptions..."
+                value={globalFilter}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                className="w-full pl-4 pr-4 py-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block transition-colors"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                { label: 'Last 7 Days', days: 7 },
+                { label: 'Last 30 Days', days: 30 },
+                { label: 'Last 3 Months', months: 3 },
+                { label: 'This Year', year: true },
+              ].map((filter, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    if (filter.days) setStartDateFilter(format(subDays(new Date(), filter.days), 'yyyy-MM-dd'));
+                    else if (filter.months) setStartDateFilter(format(subMonths(new Date(), filter.months), 'yyyy-MM-dd'));
+                    else if (filter.year) setStartDateFilter(format(startOfYear(new Date()), 'yyyy-MM-dd'));
+                    setEndDateFilter('');
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                >
+                  {filter.label}
+                </button>
+              ))}
+              <button onClick={() => { setStartDateFilter(''); setEndDateFilter(''); }} className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-full hover:bg-red-100 transition-colors">Clear</button>
+              <div className="h-6 w-px bg-gray-300 mx-2 hidden sm:block"></div>
+              <button onClick={exportToExcel} className="flex-1 sm:flex-none inline-flex justify-center items-center px-4 py-2 text-sm font-medium text-green-700 bg-white border border-green-300 rounded-lg hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all">Excel</button>
+              <button onClick={exportToCSV} className="flex-1 sm:flex-none inline-flex justify-center items-center px-4 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-lg hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">CSV</button>
+              <button onClick={exportToPDF} className="flex-1 sm:flex-none inline-flex justify-center items-center px-4 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all">PDF</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
           {/* Active Subscriptions */}
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200">
-            <div className="px-4 py-5 sm:px-6 border-b border-gray-200 bg-gray-50">
+          {activeTab === 'active' && (
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200 animate-fade-in">
+            <div className="px-4 py-3 sm:px-6 border-b border-gray-200 bg-gray-50">
               <h3 className="text-lg leading-6 font-medium text-gray-900">Active Subscriptions</h3>
             </div>
             <div className="overflow-x-auto">
@@ -778,7 +835,7 @@ export default function SubscriptionManagement() {
                   {tableActive.getHeaderGroups().map(headerGroup => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map(header => (
-                        <th key={header.id} className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 transition-colors" onClick={header.column.getToggleSortingHandler()}>
+                        <th key={header.id} className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 transition-colors" onClick={header.column.getToggleSortingHandler()}>
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {{ asc: ' ↑', desc: ' ↓' }[header.column.getIsSorted() as string] ?? null}
                         </th>
@@ -790,7 +847,7 @@ export default function SubscriptionManagement() {
                   {tableActive.getRowModel().rows.map(row => (
                     <tr key={row.id} className="hover:bg-gray-50 transition-colors">
                       {row.getVisibleCells().map(cell => (
-                        <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        <td key={cell.id} className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       ))}
@@ -798,18 +855,20 @@ export default function SubscriptionManagement() {
                   ))}
                   {tableActive.getRowModel().rows.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">No active subscriptions found</td>
+                      <td colSpan={5} className="px-4 py-2 text-center text-sm text-gray-500">No active subscriptions found</td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+            <Pagination table={tableActive} />
           </div>
-          <Pagination table={tableActive} />
+          )}
 
           {/* Expired Subscriptions */}
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200">
-            <div className="px-4 py-5 sm:px-6 border-b border-gray-200 bg-gray-50">
+          {activeTab === 'expired' && (
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200 animate-fade-in">
+            <div className="px-4 py-3 sm:px-6 border-b border-gray-200 bg-gray-50">
               <h3 className="text-lg leading-6 font-medium text-gray-900">Expired Subscriptions</h3>
             </div>
             <div className="overflow-x-auto">
@@ -818,7 +877,7 @@ export default function SubscriptionManagement() {
                   {tableExpired.getHeaderGroups().map(headerGroup => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map(header => (
-                        <th key={header.id} className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 transition-colors" onClick={header.column.getToggleSortingHandler()}>
+                        <th key={header.id} className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 transition-colors" onClick={header.column.getToggleSortingHandler()}>
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {{ asc: ' ↑', desc: ' ↓' }[header.column.getIsSorted() as string] ?? null}
                         </th>
@@ -830,7 +889,7 @@ export default function SubscriptionManagement() {
                   {tableExpired.getRowModel().rows.map(row => (
                     <tr key={row.id} className="hover:bg-gray-50 transition-colors">
                       {row.getVisibleCells().map(cell => (
-                        <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        <td key={cell.id} className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       ))}
@@ -838,18 +897,20 @@ export default function SubscriptionManagement() {
                   ))}
                   {tableExpired.getRowModel().rows.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">No expired subscriptions found</td>
+                      <td colSpan={4} className="px-4 py-2 text-center text-sm text-gray-500">No expired subscriptions found</td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+            <Pagination table={tableExpired} />
           </div>
-          <Pagination table={tableExpired} />
+          )}
 
           {/* Waiting List */}
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200">
-            <div className="px-4 py-5 sm:px-6 border-b border-gray-200 bg-gray-50">
+          {activeTab === 'waiting' && (
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200 animate-fade-in">
+            <div className="px-4 py-3 sm:px-6 border-b border-gray-200 bg-gray-50">
               <h3 className="text-lg leading-6 font-medium text-gray-900">Waiting List</h3>
             </div>
             <div className="overflow-x-auto">
@@ -858,7 +919,7 @@ export default function SubscriptionManagement() {
                   {tableWaiting.getHeaderGroups().map(headerGroup => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map(header => (
-                        <th key={header.id} className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 transition-colors" onClick={header.column.getToggleSortingHandler()}>
+                        <th key={header.id} className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 transition-colors" onClick={header.column.getToggleSortingHandler()}>
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {{ asc: ' ↑', desc: ' ↓' }[header.column.getIsSorted() as string] ?? null}
                         </th>
@@ -870,7 +931,7 @@ export default function SubscriptionManagement() {
                   {tableWaiting.getRowModel().rows.map(row => (
                     <tr key={row.id} className="hover:bg-gray-50 transition-colors">
                       {row.getVisibleCells().map(cell => (
-                        <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        <td key={cell.id} className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       ))}
@@ -878,14 +939,15 @@ export default function SubscriptionManagement() {
                   ))}
                   {tableWaiting.getRowModel().rows.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">No members in waiting list</td>
+                      <td colSpan={5} className="px-4 py-2 text-center text-sm text-gray-500">No members in waiting list</td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+            <Pagination table={tableWaiting} />
           </div>
-          <Pagination table={tableWaiting} />
+          )}
         </div>
 
     </>

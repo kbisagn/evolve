@@ -7,6 +7,9 @@ import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import Footer from './Footer';
+import ConfirmationModal from './ConfirmationModal';
+import { Toaster, toast } from 'react-hot-toast';
 
 interface Expense {
   _id: string;
@@ -26,6 +29,8 @@ export default function ExpenseManagement() {
   const [showModal, setShowModal] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const categories = ['Equipment', 'Maintenance', 'Utilities', 'Salaries', 'Marketing', 'Supplies', 'Rent', 'Other'];
   const methods = ['Cash', 'UPI', 'Bank Transfer', 'Cheque'];
@@ -61,18 +66,24 @@ export default function ExpenseManagement() {
     setShowModal(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this expense?')) {
-      const res = await fetch(`/api/expenses/${id}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        fetchExpenses();
-      } else {
-        const error = await res.json().catch(() => ({}));
-        alert(error.error || 'Error deleting expense');
-      }
+  const handleDeleteRequest = (id: string) => {
+    setDeleteId(id);
+    setShowConfirmation(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteId) return;
+    const res = await fetch(`/api/expenses/${deleteId}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) {
+      toast.success('Expense deleted successfully!');
+      fetchExpenses();
+    } else {
+      const error = await res.json().catch(() => ({}));
+      toast.error(error.error || 'Error deleting expense');
     }
+    setDeleteId(null);
   };
 
   const validateField = (name: string, value: string) => {
@@ -113,10 +124,11 @@ export default function ExpenseManagement() {
       setForm({ description: '', amount: '', category: 'Equipment', paidTo: '', method: 'Cash', date: format(new Date(), 'yyyy-MM-dd') });
       setEditingId(null);
       setShowModal(false);
+      toast.success(`Expense ${editingId ? 'updated' : 'added'} successfully!`);
       fetchExpenses();
     } else {
       const error = await res.json().catch(() => ({}));
-      alert(error.error || 'Error saving expense');
+      toast.error(error.error || 'Error saving expense');
     }
   };
 
@@ -172,7 +184,7 @@ export default function ExpenseManagement() {
 
   const columns = useMemo<ColumnDef<Expense>[]>(() => [
     { accessorKey: 'description', header: 'Description' },
-    { accessorKey: 'amount', header: 'Amount', cell: info => `₹${info.getValue<number>()}` },
+    { accessorKey: 'amount', header: 'Amount', cell: info => `₹${info.getValue<number>().toLocaleString('en-IN')}` },
     { accessorKey: 'category', header: 'Category' },
     { accessorKey: 'paidTo', header: 'Paid To' },
     { accessorKey: 'method', header: 'Method' },
@@ -180,6 +192,7 @@ export default function ExpenseManagement() {
     {
       id: 'actions',
       header: 'Actions',
+      enableSorting: false,
       cell: ({ row }) => (
         <div className="flex items-center">
           <button onClick={() => handleEdit(row.original)} className="text-blue-600 hover:text-blue-900 mr-4 transition-colors" title="Edit">
@@ -187,7 +200,7 @@ export default function ExpenseManagement() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
           </button>
-          <button onClick={() => handleDelete(row.original._id)} className="text-red-600 hover:text-red-900 transition-colors" title="Delete">
+          <button onClick={() => handleDeleteRequest(row.original._id)} className="text-red-600 hover:text-red-900 transition-colors" title="Delete">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -211,7 +224,25 @@ export default function ExpenseManagement() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 font-sans">
+    <div className="min-h-screen bg-gray-50/50 py-8 font-sans flex flex-col">
+      <style jsx global>{`
+        /* For Webkit-based browsers (Chrome, Safari) */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb {
+          background-color: rgba(156, 163, 175, 0.5);
+          border-radius: 10px;
+          border: 2px solid transparent;
+          background-clip: content-box;
+        }
+        ::-webkit-scrollbar-thumb:hover { background-color: rgba(107, 114, 128, 0.8); }
+        /* For Firefox */
+        * {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+        }
+      `}</style>
+      <ConfirmationModal isOpen={showConfirmation} onClose={() => setShowConfirmation(false)} onConfirm={handleDeleteConfirm} title="Delete Expense" message="Are you sure you want to delete this expense? This action cannot be undone." />
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="md:flex md:items-center md:justify-between mb-8">
           <div className="flex-1 min-w-0">
@@ -235,7 +266,7 @@ export default function ExpenseManagement() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="relative flex-1 max-w-lg">
               <input
@@ -255,13 +286,13 @@ export default function ExpenseManagement() {
           </div>
         </div>
 
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200">
+        <div className="bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-100">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               {table.getHeaderGroups().map(headerGroup => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map(header => (
-                    <th key={header.id} className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 transition-colors" onClick={header.column.getToggleSortingHandler()}>
+                    <th key={header.id} className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 transition-colors" onClick={header.column.getToggleSortingHandler()}>
                       {flexRender(header.column.columnDef.header, header.getContext())}
                       {{
                         asc: ' ↑',
@@ -276,7 +307,7 @@ export default function ExpenseManagement() {
               {table.getRowModel().rows.map(row => (
                 <tr key={row.id} className="hover:bg-gray-50 transition-colors">
                   {row.getVisibleCells().map(cell => (
-                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <td key={cell.id} className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -284,7 +315,7 @@ export default function ExpenseManagement() {
               ))}
               {table.getRowModel().rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
                     No expenses found.
                   </td>
                 </tr>
@@ -293,7 +324,7 @@ export default function ExpenseManagement() {
           </table>
         </div>
 
-        <div className="flex items-center justify-between mt-6 bg-white px-4 py-3 rounded-lg shadow-sm border border-gray-200 sm:px-6">
+        <div className="flex items-center justify-between mt-6 bg-white px-4 py-3 rounded-xl shadow-sm border border-gray-100 sm:px-6">
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
               <p className="text-sm text-gray-700">
@@ -442,6 +473,7 @@ export default function ExpenseManagement() {
           </div>
         </div>
       )}
+      <Footer />
     </div>
   );
 }
