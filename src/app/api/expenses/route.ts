@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 
 import dbConnect from '@/lib/mongodb';
 
 import Expense from '@/models/Expense';
+import Log from '@/models/Log';
 
 export async function GET() {
+  const session = await auth();
+  if (!session || !session.user || (session.user.role !== 'Manager' && session.user.role !== 'Admin')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   await dbConnect();
 
@@ -15,6 +21,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const session = await auth();
+  if (!session || !session.user || (session.user.role !== 'Manager' && session.user.role !== 'Admin')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     await dbConnect();
 
@@ -23,6 +34,14 @@ export async function POST(request: NextRequest) {
     const expense = new Expense({ description, amount, category, paidTo, method, date });
 
     await expense.save();
+
+    await Log.create({
+      action: 'CREATE',
+      entity: 'Expense',
+      entityId: expense._id,
+      details: `Created expense: ${description} for ₹${amount}`,
+      performedBy: session.user.email,
+    });
 
     return NextResponse.json(expense);
   } catch (error) {

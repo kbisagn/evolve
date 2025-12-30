@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
@@ -8,8 +9,11 @@ import { Toaster } from 'react-hot-toast';
 import { IndianRupee, Users, TrendingUp, BarChart3, Eye, Clock, ArrowUpRight, ArrowDownRight, Wallet, Activity, CreditCard } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useState, useEffect, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 
 export default function Dashboard() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
   const [members, setMembers] = useState<any[]>([]);
   const [seats, setSeats] = useState<any[]>([]);
@@ -18,6 +22,14 @@ export default function Dashboard() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [filterType, setFilterType] = useState<'total' | 'thisMonth' | 'previousMonth'>('total');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+
+  useEffect(() => {
+    if (status === 'loading') return; // Still loading
+    if (!session) {
+      router.push('/auth/signin');
+      return;
+    }
+  }, [session, status, router]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,8 +57,8 @@ export default function Dashboard() {
         console.error('Error fetching data:', error);
       }
     };
-    fetchData();
-  }, []);
+    if (session) fetchData();
+  }, [session]);
 
   useEffect(() => {
     if (filterType === 'previousMonth' && !selectedMonth) {
@@ -161,6 +173,14 @@ export default function Dashboard() {
     prep,
     percentage: totalExams > 0 ? Math.round((count / totalExams) * 100) : 0
   }));
+
+  if (status === 'loading') {
+    return <div>Loading...</div>;
+  }
+
+  if (!session) {
+    return null; // Redirecting
+  }
 
   return (
     <div className="flex h-screen">

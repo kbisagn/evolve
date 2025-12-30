@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 
 import dbConnect from '@/lib/mongodb';
 
@@ -9,6 +10,8 @@ import Seat from '@/models/Seat';
 import Payment from '@/models/Payment';
 
 import WaitingList from '@/models/WaitingList';
+
+import Log from '@/models/Log';
 
 function calculateEndDate(start: Date, duration: string) {
 
@@ -38,6 +41,27 @@ export async function GET() {
     await dbConnect();
     console.log('DB connected for subscriptions.');
 
+    // First, update any expired subscriptions
+    const now = new Date();
+    const expiredSubscriptions = await Subscription.find({
+      endDate: { $lt: now },
+      status: 'active'
+    });
+
+    for (const sub of expiredSubscriptions) {
+      sub.status = 'expired';
+      await sub.save();
+
+      // Update seat to vacant if occupied
+      const seat = await Seat.findById(sub.seat);
+      if (seat && seat.status === 'occupied') {
+        seat.status = 'vacant';
+        seat.assignedMember = null;
+        seat.subscription = null;
+        await seat.save();
+      }
+    }
+
     const subscriptions = await Subscription.find()
       .populate('member', 'name email memberId phone address examPrep createdAt')
       .populate('seat', 'seatNumber status')
@@ -53,6 +77,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const session = await auth();
+  if (!session || !session.user || (session.user.role !== 'Manager' && session.user.role !== 'Admin')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     console.log('Connecting to DB for new subscription...');
     await dbConnect();
@@ -182,6 +211,15 @@ export async function POST(request: NextRequest) {
     seat.subscription = subscription._id;
 
     await seat.save();
+
+    // Log the action
+    await Log.create({
+      action: 'CREATE',
+      entity: 'Subscription',
+      entityId: subscription._id,
+      details: `Created subscription for member ${memberId} on seat ${seatNumber}`,
+      performedBy: session.user.email
+    });
 
     return NextResponse.json(subscription);
 

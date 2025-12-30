@@ -1,14 +1,38 @@
+'use client';
+
 import Link from 'next/link';
-import { Home, Users, CreditCard, BarChart3, MapPin, IndianRupee, BookOpen } from 'lucide-react';
+import { Home, Users, CreditCard, BarChart3, MapPin, IndianRupee, BookOpen, User, UserCheck, ClipboardList, Settings } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 
 export default function Sidebar() {
+  const { data: session } = useSession();
+  const [projectName, setProjectName] = useState('Evolve');
+
+  useEffect(() => {
+    if (session?.user.role === 'Admin') {
+      fetchSettings();
+    }
+  }, [session]);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data = await res.json();
+        setProjectName(data.projectName || 'Evolve');
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
   return (
     <div className="hidden md:flex flex-col w-64 bg-gray-900 text-white h-full border-r border-gray-800 shadow-xl">
       <div className="p-6 flex items-center space-x-3 border-b border-gray-800">
         <div className="bg-blue-600 p-2 rounded-lg">
           <BookOpen size={24} className="text-white" />
         </div>
-        <span className="text-xl font-bold tracking-wide">Evolve</span>
+        <span className="text-xl font-bold tracking-wide">{projectName}</span>
       </div>
       <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
         <Link href="/" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
@@ -31,18 +55,23 @@ export default function Sidebar() {
           <BarChart3 size={20} />
           <span className="font-medium">Reports</span>
         </Link>
+        {session?.user.role === 'Admin' && (
+          <>
+            <Link href="/admin/users" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
+              <UserCheck size={20} />
+              <span className="font-medium">Manager Management</span>
+            </Link>
+            <Link href="/admin/settings" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
+              <Settings size={20} />
+              <span className="font-medium">System Settings</span>
+            </Link>
+            <Link href="/admin/logs" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
+              <ClipboardList size={20} />
+              <span className="font-medium">System Logs</span>
+            </Link>
+          </>
+        )}
       </nav>
-      <div className="p-4 border-t border-gray-800">
-        <div className="flex items-center space-x-3 px-3 py-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-xs font-bold">
-            KG
-          </div>
-          <div className="text-sm">
-            <p className="font-medium">Admin User</p>
-            <p className="text-gray-400 text-xs">admin@evolve.com</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

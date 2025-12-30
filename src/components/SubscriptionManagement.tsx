@@ -288,11 +288,11 @@ export default function SubscriptionManagement({ isOpen = false, onClose = () =>
       cell: ({ row }) => (
         <div className="flex items-center">
           <div className="h-10 w-10 flex-shrink-0 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm shadow-sm">
-            {row.original.member.name.charAt(0).toUpperCase()}
+            {row.original.member?.name ? row.original.member.name.charAt(0).toUpperCase() : '?'}
           </div>
           <div className="ml-4">
-            <div className="text-sm font-medium text-gray-900">{row.original.member.name}</div>
-            <div className="text-xs text-gray-500 font-mono">{row.original.member.memberId}</div>
+            <div className="text-sm font-medium text-gray-900">{row.original.member?.name || 'Unknown Member'}</div>
+            <div className="text-xs text-gray-500 font-mono">{row.original.member?.memberId || 'N/A'}</div>
           </div>
         </div>
       )
@@ -385,11 +385,11 @@ export default function SubscriptionManagement({ isOpen = false, onClose = () =>
       cell: ({ row }) => (
         <div className="flex items-center">
           <div className="h-10 w-10 flex-shrink-0 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm shadow-sm">
-            {row.original.member.name.charAt(0).toUpperCase()}
+            {row.original.member?.name ? row.original.member.name.charAt(0).toUpperCase() : '?'}
           </div>
           <div className="ml-4">
-            <div className="text-sm font-medium text-gray-900">{row.original.member.name}</div>
-            <div className="text-xs text-gray-500 font-mono">{row.original.member.memberId}</div>
+            <div className="text-sm font-medium text-gray-900">{row.original.member?.name || 'Unknown Member'}</div>
+            <div className="text-xs text-gray-500 font-mono">{row.original.member?.memberId || 'N/A'}</div>
           </div>
         </div>
       )
@@ -430,11 +430,11 @@ export default function SubscriptionManagement({ isOpen = false, onClose = () =>
       cell: ({ row }) => (
         <div className="flex items-center">
           <div className="h-10 w-10 flex-shrink-0 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 font-bold text-sm shadow-sm">
-            {row.original.member.name.charAt(0).toUpperCase()}
+            {row.original.member?.name ? row.original.member.name.charAt(0).toUpperCase() : '?'}
           </div>
           <div className="ml-4">
-            <div className="text-sm font-medium text-gray-900">{row.original.member.name}</div>
-            <div className="text-xs text-gray-500 font-mono">{row.original.member.memberId}</div>
+            <div className="text-sm font-medium text-gray-900">{row.original.member?.name || 'Unknown Member'}</div>
+            <div className="text-xs text-gray-500 font-mono">{row.original.member?.memberId || 'N/A'}</div>
           </div>
         </div>
       )
