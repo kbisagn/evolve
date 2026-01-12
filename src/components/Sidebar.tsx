@@ -41,24 +41,39 @@ export default function Sidebar() {
         </Link>
         <Link href="/seats" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
           <MapPin size={20} />
-          <span className="font-medium">Seats & Subscriptions</span>
+          <span className="font-medium">{session?.user.role === 'Member' ? 'Seats Map' : 'Seats & Subscriptions'}</span>
         </Link>
-        <Link href="/members" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
-          <Users size={20} />
-          <span className="font-medium">Members</span>
-        </Link>
-        <Link href="/expenses" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
-          <IndianRupee size={20} />
-          <span className="font-medium">Expenses</span>
-        </Link>
-        <Link href="/fees" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
-          <CreditCard size={20} />
-          <span className="font-medium">Fee Types</span>
-        </Link>
-        <Link href="/reports" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
-          <BarChart3 size={20} />
-          <span className="font-medium">Reports</span>
-        </Link>
+        {session?.user.role === 'Member' ? (
+          <>
+            <Link href="/profile" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
+              <User size={20} />
+              <span className="font-medium">Profile</span>
+            </Link>
+            <Link href="/reports" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
+              <BarChart3 size={20} />
+              <span className="font-medium">My Reports</span>
+            </Link>
+          </>
+        ) : (
+          <>
+            <Link href="/members" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
+              <Users size={20} />
+              <span className="font-medium">Members</span>
+            </Link>
+            <Link href="/expenses" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
+              <IndianRupee size={20} />
+              <span className="font-medium">Expenses</span>
+            </Link>
+            <Link href="/fees" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
+              <CreditCard size={20} />
+              <span className="font-medium">Fee Types</span>
+            </Link>
+            <Link href="/reports" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">
+              <BarChart3 size={20} />
+              <span className="font-medium">Reports</span>
+            </Link>
+          </>
+        )}
         {session?.user.role === 'Admin' && (
           <>
             <Link href="/admin/users" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 group">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import { useReactTable, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, ColumnDef, flexRender } from '@tanstack/react-table';
 import { format, subDays, subMonths, startOfYear } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -52,6 +53,9 @@ interface Expense {
 }
 
 export default function Reports() {
+  const { data: session } = useSession();
+  const isMember = session?.user.role === 'Member';
+
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [globalFilter, setGlobalFilter] = useState('');
@@ -64,6 +68,9 @@ export default function Reports() {
     const res = await fetch('/api/subscriptions');
     let data = await res.json();
     data = data.filter((sub: Subscription) => sub.member); // Filter out subscriptions without member
+    if (session?.user.role === 'Member') {
+      data = data.filter((sub: Subscription) => sub.member.email === session.user.email);
+    }
     data.sort((a: Subscription, b: Subscription) => {
       const getLastPaymentDate = (sub: Subscription) => {
         if (sub.payments && sub.payments.length > 0) {
@@ -77,16 +84,27 @@ export default function Reports() {
   };
 
   const fetchExpenses = async () => {
+    if (session?.user.role === 'Member') {
+      setExpenses([]);
+      return;
+    }
     const res = await fetch('/api/expenses');
-    const data = await res.json();
-    data.sort((a: Expense, b: Expense) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    setExpenses(data);
+    if (res.ok) {
+      const data = await res.json();
+      data.sort((a: Expense, b: Expense) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setExpenses(data);
+    } else {
+      setExpenses([]);
+    }
   };
 
   useEffect(() => {
     fetchSubscriptions();
     fetchExpenses();
-  }, []);
+    if (session?.user.role === 'Member') {
+      setReportType('income');
+    }
+  }, [session]);
 
   const filteredSubscriptions = useMemo(() => {
     return subscriptions.filter(sub => {
@@ -339,28 +357,32 @@ export default function Reports() {
           <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
           <p className="mt-1 text-sm text-gray-500">Analyze financial performance.</p>
         </div>
-        <div className="flex gap-4">
-          <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200 flex flex-col items-end">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</span>
-            <span className="text-xl font-bold text-green-600">₹{totalRevenue.toLocaleString()}</span>
+        {!isMember && (
+          <div className="flex gap-4">
+            <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200 flex flex-col items-end">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</span>
+              <span className="text-xl font-bold text-green-600">₹{totalRevenue.toLocaleString()}</span>
+            </div>
+            <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200 flex flex-col items-end">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Expenses</span>
+              <span className="text-xl font-bold text-red-600">₹{totalExpenses.toLocaleString()}</span>
+            </div>
+            <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200 flex flex-col items-end">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Net Profit</span>
+              <span className={`text-xl font-bold ${netProfit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>₹{netProfit.toLocaleString()}</span>
+            </div>
           </div>
-          <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200 flex flex-col items-end">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Expenses</span>
-            <span className="text-xl font-bold text-red-600">₹{totalExpenses.toLocaleString()}</span>
-          </div>
-          <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200 flex flex-col items-end">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Net Profit</span>
-            <span className={`text-xl font-bold ${netProfit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>₹{netProfit.toLocaleString()}</span>
-          </div>
-        </div>
+        )}
       </div>
 
         <div className="space-y-6 mb-6">
         {/* Tabs */}
-        <div className="flex space-x-1 bg-gray-200 p-1 rounded-lg w-fit">
-          <button onClick={() => setReportType('income')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${reportType === 'income' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>Income</button>
-          <button onClick={() => setReportType('expense')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${reportType === 'expense' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>Expenses</button>
-        </div>
+        {!isMember && (
+          <div className="flex space-x-1 bg-gray-200 p-1 rounded-lg w-fit">
+            <button onClick={() => setReportType('income')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${reportType === 'income' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>Income</button>
+            <button onClick={() => setReportType('expense')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${reportType === 'expense' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>Expenses</button>
+          </div>
+        )}
 
         {/* Filters Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">

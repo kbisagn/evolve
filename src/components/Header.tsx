@@ -12,6 +12,7 @@ interface HeaderProps {
 
 export default function Header({ pageTitle }: HeaderProps) {
   const { data: session } = useSession();
+  const isMember = session?.user.role === 'Member';
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', address: '', examPrep: '' });
   const [showModal, setShowModal] = useState(false);
@@ -128,10 +129,10 @@ export default function Header({ pageTitle }: HeaderProps) {
           <h1 className="text-xl font-semibold text-gray-800">{pageTitle}</h1>
         </div>
         <div className="flex items-center space-x-4">
-          <button onClick={() => setShowModal(true)} className="hidden sm:flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md text-sm font-medium">
+          {!isMember && <button onClick={() => setShowModal(true)} className="hidden sm:flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md text-sm font-medium">
             <UserPlus size={16} className="mr-2" />
             <span className="hidden md:inline">Add Member</span>
-          </button>
+          </button>}
           <div className="relative" ref={notificationRef}>
             <button onClick={() => setNotificationsOpen(!notificationsOpen)} className="p-2 rounded-full hover:bg-gray-100 relative transition-colors">
               <Bell size={20} className="text-gray-600" />
@@ -221,10 +222,10 @@ export default function Header({ pageTitle }: HeaderProps) {
               </button>
             </div>
             <div className="px-4 py-4">
-              <button onClick={() => { setShowModal(true); setSidebarOpen(false); }} className="w-full flex items-center space-x-3 p-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-sm">
+              {!isMember && <button onClick={() => { setShowModal(true); setSidebarOpen(false); }} className="w-full flex items-center space-x-3 p-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-sm">
                 <UserPlus size={20} />
                 <span className="font-medium">Add Member</span>
-              </button>
+              </button>}
             </div>
             <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
               <Link href="/" className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200" onClick={() => setSidebarOpen(false)}>

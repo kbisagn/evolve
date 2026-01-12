@@ -15,6 +15,8 @@ export default function Dashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
+  const isMember = session?.user.role === 'Member';
+
   const [members, setMembers] = useState<any[]>([]);
   const [seats, setSeats] = useState<any[]>([]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
@@ -34,16 +36,24 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [membersRes, seatsRes, subsRes, expensesRes] = await Promise.all([
+        const promises = [
           fetch('/api/members'),
           fetch('/api/seats'),
           fetch('/api/subscriptions'),
-          fetch('/api/expenses')
-        ]);
+        ];
+        if (!isMember) {
+          promises.push(fetch('/api/expenses'));
+        }
+        const [membersRes, seatsRes, subsRes, expensesRes] = await Promise.all(promises);
         const m = await membersRes.json();
         const s = await seatsRes.json();
         const subs = await subsRes.json();
-        const exp = await expensesRes.json();
+        let exp = [];
+        if (!isMember && expensesRes) {
+          if (expensesRes.ok) {
+            exp = await expensesRes.json();
+          }
+        }
         setMembers(m);
         setSeats(s);
         setSubscriptions(subs);
@@ -206,50 +216,85 @@ export default function Dashboard() {
           }
         `}</style>
         <div className="p-6">
-        {/* Header Section */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">Overview</h2>
-            <p className="text-gray-500 text-sm mt-1">Track your reading room performance.</p>
-          </div>
-          <div className="flex flex-col sm:flex-row items-center bg-gradient-to-r from-gray-50 to-gray-100 p-2 rounded-2xl border border-gray-200/60 shadow-sm">
-          <button
-            onClick={() => setFilterType('total')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterType === 'total' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            Total
-          </button>
-          <button
-            onClick={() => setFilterType('thisMonth')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterType === 'thisMonth' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            This Month
-          </button>
-          <div className="relative">
-            <select
-              value={filterType === 'previousMonth' ? selectedMonth : ""}
-              onChange={(e) => {
-                setFilterType('previousMonth');
-                setSelectedMonth(e.target.value);
-              }}
-              className={`px-4 py-2 pr-8 rounded-lg text-sm font-medium transition-all outline-none cursor-pointer appearance-none ${
-                filterType === 'previousMonth' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50 bg-transparent'
-              }`}
-            >
-              <option value="" disabled>Previous Months</option>
-              {previousMonthsOptions.map(option => (
-                <option key={option.value} value={option.value} className="text-gray-900 bg-white hover:bg-gray-100">{option.label}</option>
-              ))}
-            </select>
-            <svg className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-          </div>
-        </div>
+        {isMember ? (
+          <>
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-800">Seat Map</h2>
+              <p className="text-gray-500 text-sm mt-1">View current seat availability.</p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900 mb-6">Occupancy Heatmap</h2>
+              <div className="grid grid-cols-8 sm:grid-cols-10 gap-2">
+                {seats.map(seat => (
+                  <div
+                    key={seat._id}
+                    className={`aspect-square rounded-md transition-all duration-300 hover:scale-110 cursor-pointer ${
+                      seat.status === 'occupied' 
+                        ? 'bg-red-500 shadow-sm shadow-red-200' 
+                        : 'bg-emerald-400 shadow-sm shadow-emerald-200'
+                    }`}
+                    title={seat.status === 'occupied' ? 'Occupied' : 'Vacant'}
+                  ></div>
+                ))}
+              </div>
+              <div className="flex items-center mt-6 space-x-6">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 bg-emerald-400 rounded-full mr-2"></div>
+                  <span className="text-sm text-gray-600 font-medium">Vacant</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                  <span className="text-sm text-gray-600 font-medium">Occupied</span>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Header Section */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">Overview</h2>
+                <p className="text-gray-500 text-sm mt-1">Track your reading room performance.</p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center bg-gradient-to-r from-gray-50 to-gray-100 p-2 rounded-2xl border border-gray-200/60 shadow-sm">
+              <button
+                onClick={() => setFilterType('total')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterType === 'total' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                Total
+              </button>
+              <button
+                onClick={() => setFilterType('thisMonth')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterType === 'thisMonth' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                This Month
+              </button>
+              <div className="relative">
+                <select
+                  value={filterType === 'previousMonth' ? selectedMonth : ""}
+                  onChange={(e) => {
+                    setFilterType('previousMonth');
+                    setSelectedMonth(e.target.value);
+                  }}
+                  className={`px-4 py-2 pr-8 rounded-lg text-sm font-medium transition-all outline-none cursor-pointer appearance-none ${
+                    filterType === 'previousMonth' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50 bg-transparent'
+                  }`}
+                >
+                  <option value="" disabled>Previous Months</option>
+                  {previousMonthsOptions.map(option => (
+                    <option key={option.value} value={option.value} className="text-gray-900 bg-white hover:bg-gray-100">{option.label}</option>
+                  ))}
+                </select>
+                <svg className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              </div>
+            </div>
 
-        {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
+            {/* Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
           {/* Revenue Card */}
           <div className="bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-gray-100 transition-transform hover:-translate-y-1">
             <div className="flex justify-between items-start">
@@ -481,6 +526,8 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+          </>
+        )}
         </div>
         </main>
         <Footer />

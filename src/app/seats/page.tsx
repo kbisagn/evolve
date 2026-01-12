@@ -7,6 +7,7 @@ import SubscriptionManagement from '../../components/SubscriptionManagement';
 import Footer from '../../components/Footer';
 import { Toaster } from 'react-hot-toast';
 import { Plus, X } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 interface Seat {
   _id: string;
@@ -17,6 +18,9 @@ interface Seat {
 }
 
 export default function SeatsPage() {
+  const { data: session } = useSession();
+  const isMember = session?.user.role === 'Member';
+
   const [seats, setSeats] = useState<Seat[]>([]);
   const [waitingCount, setWaitingCount] = useState(0);
   const [totalCapacity, setTotalCapacity] = useState(46);
@@ -112,13 +116,13 @@ export default function SeatsPage() {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           
           <div className="flex justify-end mb-6">
-            <button
+            {!isMember && <button
               onClick={() => setSubscriptionModalOpen(true)}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105"
             >
               <Plus className="h-5 w-5 mr-2" />
               New Subscription
-            </button>
+            </button>}
           </div>
           
           {/* Stats Overview */}

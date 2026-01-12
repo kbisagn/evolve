@@ -9,6 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ConfirmationModal from './ConfirmationModal';
 import { Toaster, toast } from 'react-hot-toast';
+import { useSession } from 'next-auth/react';
 
 interface Member {
   _id: string;
@@ -45,13 +46,16 @@ interface SubscriptionManagementProps {
 }
 
 export default function SubscriptionManagement({ isOpen = false, onClose = () => {}, onUpdate, initialSeatNumber }: SubscriptionManagementProps) {
+  const { data: session } = useSession();
+  const isMember = session?.user.role === 'Member';
+
   const [members, setMembers] = useState<Member[]>([]);
   const [seats, setSeats] = useState<any[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [waitingList, setWaitingList] = useState<Waiting[]>([]);
   const [feeTypes, setFeeTypes] = useState<any[]>([]);
   const [error, setError] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'active' | 'expired' | 'waiting'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'expired' | 'waiting'>(isMember ? 'waiting' : 'active');
   const [globalFilter, setGlobalFilter] = useState('');
   const [startDateFilter, setStartDateFilter] = useState('');
   const [endDateFilter, setEndDateFilter] = useState('');
@@ -812,7 +816,7 @@ export default function SubscriptionManagement({ isOpen = false, onClose = () =>
         )}
 
         {/* Tabs */}
-        <div className="mb-6 border-b border-gray-200">
+        {!isMember && <div className="mb-6 border-b border-gray-200">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             {['active', 'expired', 'waiting'].map((tab) => (
               <button
@@ -828,7 +832,7 @@ export default function SubscriptionManagement({ isOpen = false, onClose = () =>
               </button>
             ))}
           </nav>
-        </div>
+        </div>}
 
         {/* Filters Card */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
@@ -871,7 +875,12 @@ export default function SubscriptionManagement({ isOpen = false, onClose = () =>
           </div>
         </div>
 
-        <div className="space-y-4">
+        {isMember ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">You do not have access to subscription management.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
           {/* Active Subscriptions */}
           {activeTab === 'active' && (
           <div className="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200 animate-fade-in">
@@ -998,6 +1007,7 @@ export default function SubscriptionManagement({ isOpen = false, onClose = () =>
           </div>
           )}
         </div>
+        )}
 
     </>
   );

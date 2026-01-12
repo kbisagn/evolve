@@ -10,6 +10,7 @@ import autoTable from 'jspdf-autotable';
 import Footer from './Footer';
 import ConfirmationModal from './ConfirmationModal';
 import { toast } from 'react-hot-toast';
+import { useSession } from 'next-auth/react';
 
 interface Member {
   _id: string;
@@ -23,6 +24,9 @@ interface Member {
 }
 
 export default function MemberManagement() {
+  const { data: session } = useSession();
+  const isMember = session?.user.role === 'Member';
+
   const [members, setMembers] = useState<Member[]>([]);
   const [form, setForm] = useState({ name: '', email: '', phone: '', address: '', examPrep: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -79,6 +83,7 @@ export default function MemberManagement() {
   };
 
   const handleAdd = () => {
+    if (isMember) return;
     setForm({ name: '', email: '', phone: '', address: '', examPrep: '' });
     setEditingId(null);
     setShowModal(true);
@@ -232,7 +237,7 @@ export default function MemberManagement() {
       id: 'actions',
       header: 'Actions',
       enableSorting: false,
-      cell: ({ row }) => (
+      cell: ({ row }) => isMember ? null : (
         <div className="flex items-center">
             <button onClick={() => handleEdit(row.original)} className="text-blue-600 hover:text-blue-900 mr-4 transition-colors" title="Edit">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -293,15 +298,17 @@ export default function MemberManagement() {
             </p>
           </div>
           <div className="mt-4 flex md:mt-0 md:ml-4 gap-4">
-            <button
-              onClick={handleAdd}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-            >
-              <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Add Member
-            </button>
+            {!isMember && (
+              <button
+                onClick={handleAdd}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+                Add Member
+              </button>
+            )}
           </div>
         </div>
 
