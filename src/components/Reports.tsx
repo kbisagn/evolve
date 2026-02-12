@@ -143,7 +143,7 @@ export default function Reports() {
     { accessorKey: 'member.memberId', header: 'Member ID' },
     { accessorKey: 'member.name', header: 'Name' },
     { accessorKey: 'member.phone', header: 'Phone' },
-    { accessorKey: 'seat.seatNumber', header: 'Seat Number' },
+    { accessorKey: 'seat.seatNumber', header: 'Seat' },
     {
       accessorKey: 'startDate',
       header: 'Start Date',
@@ -155,7 +155,7 @@ export default function Reports() {
       cell: ({ getValue }) => format(new Date(getValue<string>()), 'dd/MM/yyyy')
     },
     { accessorKey: 'duration', header: 'Duration' },
-    { accessorKey: 'totalAmount', header: 'Total Amount', cell: ({ getValue }) => `₹${getValue<number>().toLocaleString('en-IN')}` },
+    { accessorKey: 'totalAmount', header: 'Amount', cell: ({ getValue }) => `₹${getValue<number>().toLocaleString('en-IN')}` },
     { 
       accessorKey: 'status', 
       header: 'Status',
@@ -471,7 +471,7 @@ export default function Reports() {
             {currentTable.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 transition-colors" onClick={header.column.getToggleSortingHandler()}>
+                  <th key={header.id} className="px-2 py-1 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 transition-colors" onClick={header.column.getToggleSortingHandler()}>
                     {header.isPlaceholder ? null : flexRender(header.column.columnDef.header as any, header.getContext())}
                     {{ asc: ' ↑', desc: ' ↓' }[header.column.getIsSorted() as string] ?? null}
                   </th>
@@ -483,7 +483,7 @@ export default function Reports() {
             {currentTable.getRowModel().rows.map(row => (
               <tr key={row.id}>
                 {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                  <td key={cell.id} className="px-2 py-1 whitespace-nowrap text-xs text-gray-700">
                     {flexRender(cell.column.columnDef.cell as any, cell.getContext())}
                   </td>
                 ))}
