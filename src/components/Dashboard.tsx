@@ -58,8 +58,8 @@ export default function Dashboard() {
             exp = await expensesRes.json();
           }
         }
-        setMembers(m);
-        setSeats(s);
+        setMembers(Array.isArray(m) ? m : []);
+        setSeats(Array.isArray(s) ? s : []);
         setSubscriptions(Array.isArray(subs) ? subs : []);
         setLocations(locs || []);
         setExpenses(exp);
