@@ -165,17 +165,17 @@ export default function QRScannerPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header pageTitle="Verify Member" />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-3 md:p-4 lg:p-6">
           <div className="max-w-3xl mx-auto">
             
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center">
-                  <IdCard className="w-6 h-6 text-white" />
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 md:p-6 mb-4 md:mb-6">
+              <div className="flex items-center gap-3 md:gap-4 mb-3 md:mb-4">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl md:rounded-2xl flex items-center justify-center">
+                  <IdCard className="w-5 h-5 md:w-6 md:h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-800">Verify Member</h1>
-                  <p className="text-sm text-gray-500">Search by ID, Email, Phone, or Name to verify a subscription.</p>
+                  <h1 className="text-lg md:text-2xl font-bold text-gray-800">Verify Member</h1>
+                  <p className="text-xs md:text-sm text-gray-500">Search by ID, Email, Phone, or Name to verify a subscription.</p>
                 </div>
               </div>
 

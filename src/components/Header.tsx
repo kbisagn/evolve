@@ -190,7 +190,7 @@ export default function Header({ pageTitle }: HeaderProps) {
     <>
       <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
       {/* Top Header - iOS Style with Glassmorphism */}
-      <header className="glass sticky top-0 z-30 h-14 flex items-center justify-between px-4">
+      <header className="glass sticky top-0 z-30 h-12 md:h-14 flex items-center justify-between px-3 md:px-4">
         <div className="flex items-center">
           <button
             className="lg:hidden mr-3 p-1.5 rounded-lg hover:bg-black/5"
@@ -305,24 +305,33 @@ export default function Header({ pageTitle }: HeaderProps) {
               <Link href="/" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
                 <Home size={18} /> <span>Dashboard</span>
               </Link>
-              <Link href="/members" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
-                <Users size={18} /> <span>Members</span>
-              </Link>
-              <Link href="/seats" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
-                <Calendar size={18} /> <span>Subscriptions</span>
-              </Link>
-              <Link href="/expenses" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
-                <IndianRupee size={18} /> <span>Expenses</span>
-              </Link>
-              <Link href="/reports" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
-                <BarChart3 size={18} /> <span>Reports</span>
-              </Link>
-              <Link href="/fees" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
-                <CreditCard size={18} /> <span>Fee Types</span>
-              </Link>
-              <Link href="/profile" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
-                <User size={18} /> <span>Profile</span>
-              </Link>
+
+              {isMember ? (
+                <>
+                  <Link href="/profile" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
+                    <User size={18} /> <span>Profile</span>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/members" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
+                    <Users size={18} /> <span>Members</span>
+                  </Link>
+                  <Link href="/seats" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
+                    <Calendar size={18} /> <span>Subscriptions</span>
+                  </Link>
+                  <Link href="/expenses" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
+                    <IndianRupee size={18} /> <span>Expenses</span>
+                  </Link>
+                  <Link href="/reports" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
+                    <BarChart3 size={18} /> <span>Reports</span>
+                  </Link>
+                  <Link href="/fees" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
+                    <CreditCard size={18} /> <span>Fee Types</span>
+                  </Link>
+                </>
+              )}
+
               {session?.user.role === 'Admin' && (
                 <>
                   <Link href="/admin/settings" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl hover:bg-gray-800 transition-all duration-200 text-sm" onClick={() => setSidebarOpen(false)}>
