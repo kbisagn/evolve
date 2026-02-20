@@ -7,6 +7,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const memberId = searchParams.get('memberId');
+    const email = searchParams.get('email');
+    const phone = searchParams.get('phone');
+    const name = searchParams.get('name');
     const rawData = searchParams.get('data');
 
     let targetMemberId = memberId;
@@ -24,17 +27,45 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (!targetMemberId) {
+    // Check if any search parameter is provided
+    const hasMemberId = targetMemberId && targetMemberId.trim();
+    const hasEmail = email && email.trim();
+    const hasPhone = phone && phone.trim();
+    const hasName = name && name.trim();
+
+    if (!hasMemberId && !hasEmail && !hasPhone && !hasName) {
       return NextResponse.json(
-        { error: 'Member ID is required' },
+        { error: 'Please provide Member ID, Email, Phone Number, or Name' },
         { status: 400 }
       );
     }
 
     await dbConnect();
 
-    // Find member by memberId
-    const member = await Member.findOne({ memberId: targetMemberId });
+    // Build search query based on provided parameters
+    let member;
+    const searchQuery: Record<string, unknown> = {};
+    
+    // Priority: memberId > email > phone > name
+    if (targetMemberId && targetMemberId.trim()) {
+      searchQuery.memberId = targetMemberId.trim();
+    } else if (email && email.trim()) {
+      // Case-insensitive exact email search
+      searchQuery.email = email.trim().toLowerCase();
+    } else if (phone && phone.trim()) {
+      // Phone search - remove any spaces/dashes and search
+      const cleanPhone = phone.trim().replace(/[\s-]/g, '');
+      searchQuery.phone = { $regex: new RegExp(cleanPhone, 'i') };
+    } else if (name && name.trim()) {
+      searchQuery.name = { $regex: name.trim(), $options: 'i' };
+    }
+
+    console.log('Verify search query:', JSON.stringify(searchQuery));
+
+    // Find member by any of the search criteria
+    member = await Member.findOne(searchQuery);
+
+    console.log('Found member:', member ? member.memberId : 'none');
 
     if (!member) {
       return NextResponse.json(

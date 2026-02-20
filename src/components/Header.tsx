@@ -3,12 +3,22 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Toaster, toast } from 'react-hot-toast';
-import { Menu, Bell, UserPlus, BookOpen, Home, MapPin, Users, IndianRupee, BarChart3, X, LogOut, User, UserCheck, CreditCard, Settings, ClipboardList, Calendar, Search, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Menu, Bell, UserPlus, BookOpen, Home, MapPin, Users, IndianRupee, BarChart3, X, LogOut, User, UserCheck, CreditCard, Settings, ClipboardList, Calendar, Search, AlertCircle, CheckCircle, XCircle, Hash, Mail, Phone } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 
 interface HeaderProps {
   pageTitle: string;
 }
+
+interface SearchHint {
+  memberId: string;
+  name: string;
+  email: string;
+  phone: string;
+  displayText: string;
+}
+
+type SearchType = 'memberId' | 'email' | 'phone' | 'name';
 
 export default function Header({ pageTitle }: HeaderProps) {
   const { data: session } = useSession();
@@ -21,6 +31,10 @@ export default function Header({ pageTitle }: HeaderProps) {
   const [verifyResult, setVerifyResult] = useState<any>(null);
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyError, setVerifyError] = useState('');
+  const [verifySearchType, setVerifySearchType] = useState<SearchType>('memberId');
+  const [verifySearchInput, setVerifySearchInput] = useState('');
+  const [verifyHints, setVerifyHints] = useState<SearchHint[]>([]);
+  const [showVerifyHints, setShowVerifyHints] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -30,14 +44,25 @@ export default function Header({ pageTitle }: HeaderProps) {
 
   const handleVerify = async () => {
     if (!verifyMemberId.trim()) {
-      setVerifyError('Please enter a Member ID');
+      setVerifyError('Please enter a ' + (verifySearchType === 'memberId' ? 'Member ID' : verifySearchType === 'email' ? 'Email' : verifySearchType === 'phone' ? 'Phone Number' : 'Name'));
       return;
     }
     setVerifyLoading(true);
     setVerifyError('');
     setVerifyResult(null);
     try {
-      const response = await fetch(`/api/verify?memberId=${encodeURIComponent(verifyMemberId.trim())}`);
+      const queryParams = new URLSearchParams();
+      if (verifySearchType === 'memberId') {
+        queryParams.set('memberId', verifyMemberId.trim());
+      } else if (verifySearchType === 'email') {
+        queryParams.set('email', verifyMemberId.trim());
+      } else if (verifySearchType === 'phone') {
+        queryParams.set('phone', verifyMemberId.trim());
+      } else if (verifySearchType === 'name') {
+        queryParams.set('name', verifyMemberId.trim());
+      }
+      
+      const response = await fetch(`/api/verify?${queryParams.toString()}`);
       const data = await response.json();
       if (response.ok) {
         setVerifyResult(data);
@@ -55,6 +80,9 @@ export default function Header({ pageTitle }: HeaderProps) {
     setVerifyMemberId('');
     setVerifyResult(null);
     setVerifyError('');
+    setVerifySearchType('memberId');
+    setVerifyHints([]);
+    setShowVerifyHints(false);
   };
 
   useEffect(() => {
@@ -87,6 +115,29 @@ export default function Header({ pageTitle }: HeaderProps) {
       console.error('Error fetching notifications:', error);
     }
   };
+
+  // Fetch search hints for verify modal
+  useEffect(() => {
+    const fetchHints = async () => {
+      if (!showVerifyModal || verifyMemberId.trim().length < 2) {
+        setVerifyHints([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/verify/search?q=${encodeURIComponent(verifyMemberId.trim())}`);
+        const data = await response.json();
+        if (response.ok) {
+          setVerifyHints(data.hints || []);
+        }
+      } catch (err) {
+        console.error('Error fetching hints:', err);
+      }
+    };
+
+    const debounceTimer = setTimeout(fetchHints, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [verifyMemberId, showVerifyModal]);
 
   const validateField = (name: string, value: string) => {
     let error = '';
@@ -390,7 +441,7 @@ export default function Header({ pageTitle }: HeaderProps) {
 
       {showVerifyModal && (
         <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="glass-card max-w-md w-full shadow-2xl min-h-[320px] rounded-2xl overflow-hidden">
+          <div className="glass-card max-w-lg w-full shadow-2xl min-h-[450px] rounded-2xl overflow-hidden">
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -403,23 +454,94 @@ export default function Header({ pageTitle }: HeaderProps) {
             </div>
             
             <div className="p-4">
-              {/* Search Input */}
-              <div className="flex gap-2 mb-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={verifyMemberId}
-                    onChange={(e) => setVerifyMemberId(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
-                    placeholder="Enter Member ID (e.g., EVOLVE202602001)"
-                    className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
-                    autoFocus
-                  />
-                </div>
-                <button onClick={handleVerify} disabled={verifyLoading} className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 text-sm font-medium disabled:opacity-50 shadow-md">
-                  {verifyLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : 'Verify'}
+              {/* Search Type Tabs */}
+              <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => { setVerifySearchType('memberId'); setVerifyMemberId(''); }}
+                  className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${verifySearchType === 'memberId' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <Hash className="w-3 h-3" /> ID
                 </button>
+                <button
+                  type="button"
+                  onClick={() => { setVerifySearchType('email'); setVerifyMemberId(''); }}
+                  className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${verifySearchType === 'email' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <Mail className="w-3 h-3" /> Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setVerifySearchType('phone'); setVerifyMemberId(''); }}
+                  className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${verifySearchType === 'phone' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <Phone className="w-3 h-3" /> Phone
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setVerifySearchType('name'); setVerifyMemberId(''); }}
+                  className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${verifySearchType === 'name' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <User className="w-3 h-3" /> Name
+                </button>
+              </div>
+
+              {/* Search Input */}
+              <div className="relative">
+                {verifyHints.length > 0 && (
+                  <div className="absolute z-10 w-full -top-2 left-0 transform -translate-y-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {verifyHints.map((hint, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => {
+                          // Fill only the specific field based on search type
+                          if (verifySearchType === 'memberId') {
+                            setVerifyMemberId(hint.memberId);
+                          } else if (verifySearchType === 'email') {
+                            setVerifyMemberId(hint.email);
+                          } else if (verifySearchType === 'phone') {
+                            setVerifyMemberId(hint.phone);
+                          } else if (verifySearchType === 'name') {
+                            setVerifyMemberId(hint.name);
+                          }
+                          setVerifyHints([]);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{hint.name}</p>
+                            <p className="text-xs text-gray-500">ID: {hint.memberId}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-gray-600">{hint.phone}</p>
+                            <p className="text-xs text-gray-400 truncate max-w-[120px]">{hint.email}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="flex gap-2 mb-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={verifyMemberId}
+                      onChange={(e) => { setVerifyMemberId(e.target.value); setShowVerifyHints(true); }}
+                      onFocus={() => setShowVerifyHints(true)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
+                      placeholder={verifySearchType === 'memberId' ? 'Enter Member ID' : verifySearchType === 'email' ? 'Enter Email Address' : verifySearchType === 'phone' ? 'Enter Phone Number' : 'Enter Member Name'}
+                      className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+                      autoFocus
+                    />
+                  </div>
+                  <button onClick={handleVerify} disabled={verifyLoading} className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 text-sm font-medium disabled:opacity-50 shadow-md">
+                    {verifyLoading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : 'Verify'}
+                  </button>
+                </div>
               </div>
 
               {verifyError && (
